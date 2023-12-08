@@ -82,7 +82,7 @@ bool CANnode::updateNode(void){
         case W_ACK:
           sndACK();
         case W_NACK:
-          toRet = assignMult(incoming.payload,_lastLen);
+          toRet = assignMult(incoming.payload,_lastData);
           break;
         case R_NACK:
           regRespondAll();
@@ -91,7 +91,7 @@ bool CANnode::updateNode(void){
     } else {
       switch(incoming.ackRW){
         case W_ACK:
-          sndAck();
+          sndACK();
         case W_NACK:
           if(_regs[incoming.reg]!=incoming.payload)   // The register will change
             toRet = true;
@@ -102,6 +102,7 @@ bool CANnode::updateNode(void){
           break;
       }
     }
+  }
 
   return toRet;
 
@@ -136,12 +137,11 @@ CANmsg CANnode::getCommand(void){
 
 // Send a message to write to a register
 bool CANnode::regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck = false){
-    uint8_t data = 0;
 
     // Construct the 29-bit id correctly)
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,toAck?W_ACK:W_NACK,reg,payload);
     // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-    _theCAN.sendMsgBuf(msgID,1,0,data);
+    _theCAN.sendMsgBuf(msgID,1,0,_lastData);
     if(TXDELAY)
       delay(TXDELAY);
 
@@ -173,7 +173,7 @@ bool CANnode::regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck
         numTries++;
         if(numTries < SENDMAX){       // So you don't send again after the last wait
           setActiveADDR(tempActive);		// Send as the correct address
-          _theCAN.sendMsgBuf(msgID,1,0,data);
+          _theCAN.sendMsgBuf(msgID,1,0,_lastData);
           if(TXDELAY)
             delay(TXDELAY);
         }
@@ -186,7 +186,7 @@ bool CANnode::regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck
 }
 
 // Send a message with multiple registers of data
-bool CANnode::regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], uint8_t num, bool toAck = false){
+bool CANnode::regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], bool toAck = false){
 
   // Construct the 29-bit id correctly)
   uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,toAck?W_ACK:W_NACK,REG_MULT,regMask);
@@ -206,7 +206,7 @@ bool CANnode::regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[],
       uint16_t responsetimer = 0;
       bool response = false;
 
-      while( (!response) && (responsetimer < ACKTIMEOUT+(multLen*3)*ACKTIMEOUTDATA) ){	// Until you timeout
+      while( (!response) && (responsetimer < ACKTIMEOUT+(21)*ACKTIMEOUTDATA) ){	// Until you timeout
         response = msgAvailable();
         if(response){
           incoming = getCommand();
@@ -275,23 +275,21 @@ void CANnode::setReg(uint8_t reg, uint8_t val){
 
 // Send ACK to whichever node last sent you a message
 void CANnode::sndACK(void){
-    uint8_t data = 0;
 
     // Construct the 29-bit id correctly)
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,0xFF,0xFF);
     // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-    _theCAN.sendMsgBuf(msgID,1,0,data);
+    _theCAN.sendMsgBuf(msgID,1,0,_lastData);
     if(TXDELAY)
       delay(TXDELAY);
 }
 
 // Respond to the last sender with the contents of the register
 void CANnode::regRespond(uint8_t reg){
-    uint8_t data = 0;
 
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,reg,_regs[reg]);
     // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-    _theCAN.sendMsgBuf(msgID,1,0,data);
+    _theCAN.sendMsgBuf(msgID,1,0,_lastData);
     if(TXDELAY)
       delay(TXDELAY);
 }
@@ -299,12 +297,11 @@ void CANnode::regRespond(uint8_t reg){
 // Send a READ message a few times, and return the response subject to a timeout
 // Note that other incoming messages during the timeout period will be IGNORED
 uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
-  uint8_t data = 0;
 
   // Construct the 29-bit id correctly)
   uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,reg,0xFF);
   // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-  _theCAN.sendMsgBuf(msgID,1,0,data);
+  _theCAN.sendMsgBuf(msgID,1,0,_lastData);
   if(TXDELAY)
     delay(TXDELAY);
 
@@ -335,7 +332,7 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      _theCAN.sendMsgBuf(msgID,1,0,data);
+      _theCAN.sendMsgBuf(msgID,1,0,_lastData);
       if(TXDELAY)
         delay(TXDELAY);
     }
@@ -346,13 +343,12 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
 
 }
 
-bool regReadAll(uint8_t rcvADDR, uint8_t data[]){
-  uint8_t dummyData = 0;
+bool CANnode::regReadAll(uint8_t rcvADDR, uint8_t data[]){
 
   // Construct the 29-bit id correctly)
   uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,REG_MULT,0xFF);
   // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-  _theCAN.sendMsgBuf(msgID,1,0,dummyData);
+  _theCAN.sendMsgBuf(msgID,1,0,_lastData);
   if(TXDELAY)
     delay(TXDELAY);
 
@@ -386,7 +382,7 @@ bool regReadAll(uint8_t rcvADDR, uint8_t data[]){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      _theCAN.sendMsgBuf(msgID,1,0,dummyData);
+      _theCAN.sendMsgBuf(msgID,1,0,_lastData);
       if(TXDELAY)
         delay(TXDELAY);
     }
@@ -397,7 +393,7 @@ bool regReadAll(uint8_t rcvADDR, uint8_t data[]){
 
 }
 
-void regRespondAll(void){
+void CANnode::regRespondAll(void){
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,REG_MULT,0xFF);
     // Send the message to the MCP2515 chip, wait a moment to not overload buffers
     _theCAN.sendMsgBuf(msgID,1,7,_regs);
@@ -409,11 +405,11 @@ void regRespondAll(void){
 // OTHER STUFF -----------------
 
 // Take a 29-bit extended CAN frame id and break it up into component CANnode parts
-CANmsg decodeID(uint32_t theID){
+CANmsg decodeMSG(uint32_t theID){
     CANmsg dec;
 
     dec.sndID = (theID >> 21) & 0xFF;
-    dec.rcvID = (theID >> 13); & 0xFF
+    dec.rcvID = (theID >> 13) & 0xFF;
     dec.ackRW = (theID >> 11) & 0b11;
     dec.reg = (theID >> 8) & 0b111;
     dec.payload = theID & 0xFF;
@@ -421,12 +417,12 @@ CANmsg decodeID(uint32_t theID){
     return dec;
 }
 
-// Basically the opposite of decodeID - take an 11 bit sender and 11 bit receiver id and 7 bit message and pack it into a 29-bit message id
+// Basically the opposite of decodeMSG - take an all the parts and make a 29 bit message
 uint32_t encodeMSG(uint8_t snd_ID, uint8_t rcv_ID, uint8_t ack_rw, uint8_t reg, uint8_t payload){
   uint8_t maskedReg = reg & 0b111;        // 3 bits only
   uint8_t maskedAckRW = ack_rw & 0b11;    // 2 bits only
 
-  return ((uint32_t)snd_ID << 21) | ((uint32_t)rcv_id << 13) | ((uint32_t)maskedAckRW << 11) | ((uint32_t)maskedReg << 8) | (uint32_t)payload;
+  return ((uint32_t)snd_ID << 21) | ((uint32_t)rcv_ID << 13) | ((uint32_t)maskedAckRW << 11) | ((uint32_t)maskedReg << 8) | (uint32_t)payload;
 }
 
 // Take an array of pin numbers, digitalRead() them with pullups enabled, and put the output into a byte

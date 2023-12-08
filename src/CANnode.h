@@ -54,12 +54,12 @@ class CANnode{
 public:
     CANnode(int CS_PIN);
     // Initializer
-    void initCAN(uint8_t myID, uint8_t mult = 0);
+    void initCAN(uint8_t myID, uint8_t mult);
     // Sets _myADDR, starts CAN communication, sets standard filter - if mult>0, do multiple
 
     void setNoFilterExt(void);
     // Listen to all extended frame messages (i.e. everything)
-    void setStandardFilter(uint8_t mult = 0);
+    void setStandardFilter(uint8_t mult);
     // Listen to anything addressed to _myADDR and any master-sent 0b11xx messages (RESET, BEAT, etc)
 
     bool msgAvailable(void);
@@ -72,9 +72,9 @@ public:
     bool updateNode(void);
     // Checks for messages, and deals with them.  Call repeatedly.  Returns true if any registers change.
 
-    bool regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck = false);
+    bool regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck);
     // Writes the payload to the register of rcvADDR
-    bool regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], bool toAck = false);
+    bool regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], bool toAck);
     // Writes the payloads to the registers in the mask of rcvADDR (no ACK)
     bool assignMult(uint8_t regMask, uint8_t data[]);
     // Puts the data in the right registers, returns true if anything changes
