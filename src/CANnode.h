@@ -74,9 +74,9 @@ public:
 
     bool regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck = false);
     // Writes the payload to the register of rcvADDR
-    bool regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], toAck = false);
+    bool regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], bool toAck = false);
     // Writes the payloads to the registers in the mask of rcvADDR (no ACK)
-    bool assignMult(uint8_t regPayload, uint8_t dataLen);
+    bool assignMult(uint8_t regMask, uint8_t data[]);
     // Puts the data in the right registers, returns true if anything changes
 
 

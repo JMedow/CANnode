@@ -18,7 +18,7 @@ void CANnode::initCAN(uint8_t myID, uint8_t mult = 0){
     _myADDR = myID;
     _activeADDR = 0;
 
-    while (_theCAN.begin(MCP_ANY,CAN_SPEED,MCP_8MHz) != CAN_OK){
+    while (_theCAN.begin(MCP_ANY,CAN_SPEED,MCP_8MHZ) != CAN_OK){
         Serial.println("CAN BUS init fail, retrying...");
         delay(100);
     }
@@ -75,12 +75,12 @@ bool CANnode::updateNode(void){
 
   if(msgAvailable()){
 
-    CANmsg incoming = getComand();
+    CANmsg incoming = getCommand();
 
     if(incoming.reg == REG_MULT){
       switch(incoming.ackRW){
         case W_ACK:
-          sndAck();
+          sndACK();
         case W_NACK:
           toRet = assignMult(incoming.payload,_lastLen);
           break;
@@ -119,7 +119,7 @@ bool CANnode::assignMult(uint8_t regMask, uint8_t data[]){
       }
 
     return toRet;
-};
+}
 
 // Call this when there is a new message.  It reads the message and dumps the contents into an CANmsg struct and dumps data and len
 CANmsg CANnode::getCommand(void){
@@ -186,7 +186,7 @@ bool CANnode::regWrite(uint8_t rcvADDR, uint8_t reg, uint8_t payload, bool toAck
 }
 
 // Send a message with multiple registers of data
-bool CANnode::regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], uint8_t num, toAck = false){
+bool CANnode::regWriteMult(uint8_t rcvADDR, uint8_t regMask, uint8_t payloads[], uint8_t num, bool toAck = false){
 
   // Construct the 29-bit id correctly)
   uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,toAck?W_ACK:W_NACK,REG_MULT,regMask);
@@ -469,7 +469,7 @@ void printMsgHelper(CANmsg theMSG){
     Serial.print("   Payload: ");
     Serial.println(theMSG.payload);
 
-}/*
+}*/
 
 /*
   END FILE
