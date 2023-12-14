@@ -89,13 +89,13 @@ public:
 
     uint8_t regVal(uint8_t reg);
     // Return the value of a given register
-    void setReg(uint8_t reg, uint8_t val);
+    bool setReg(uint8_t reg, uint8_t val);
     // Set the value of a given register
 
     void sndACK(uint8_t theReg, uint8_t thePayload);
     // Respond with ACK to the sender of the last message
 
-    void sendReadRequestg(uint8_t rcvADDR, uint8_t reg, bool readAll);
+    void sendReadRequest(uint8_t rcvADDR, uint8_t reg, bool readAll);
     // Send a read request (for response asynch)
     uint8_t regRead(uint8_t rcvADDR, uint8_t reg);
     // Ask for the contents of a register, wait for response (until timeout)

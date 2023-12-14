@@ -289,9 +289,8 @@ void CANnode::sndACK(uint8_t theReg, uint8_t thePayload){
 
 
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,theReg,(theReg == REG_MULT)?thePayload:_regs[theReg]);
-    _theCAN.sendMsgBuf(msgID,1,(theReg == REG_MULT)?7,0,_regs);
+    _theCAN.sendMsgBuf(msgID,1,(theReg == REG_MULT)?7:0,_regs);
 
-    }
     if(TXDELAY)
       delay(TXDELAY);
 }
@@ -307,11 +306,12 @@ void CANnode::regRespond(uint8_t reg){
 }
 
 // Send the request to read a register (or mult)
-void sendReadRequest(uint8_t rcvADDR, uint8_t reg, bool readAll = false){
+void CANnode::sendReadRequest(uint8_t rcvADDR, uint8_t reg, bool readAll = false){
+  uint32_t msgID;
   if(readAll)
-    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,REG_MULT,0xFF);
+    msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,REG_MULT,0xFF);
   else
-    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,reg,0xFF);
+    msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,reg,0xFF);
   // Send the message to the MCP2515 chip, wait a moment to not overload buffers
   _theCAN.sendMsgBuf(msgID,1,0,_lastData);
   if(TXDELAY)
@@ -323,7 +323,7 @@ void sendReadRequest(uint8_t rcvADDR, uint8_t reg, bool readAll = false){
 uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
 
 
-  sendReadRequestg(rcvADDR, reg);
+  sendReadRequest(rcvADDR, reg);
 
   CANmsg incoming;
 
@@ -352,7 +352,7 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      sendReadRequestg(rcvADDR, reg);
+      sendReadRequest(rcvADDR, reg);
     }
 
   }
@@ -363,7 +363,7 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
 
 bool CANnode::regReadAll(uint8_t rcvADDR, uint8_t data[]){
 
-  sendReadRequestg(rcvADDR, reg, true);
+  sendReadRequest(rcvADDR, REG_MULT, true);
 
   CANmsg incoming;
 
@@ -395,7 +395,7 @@ bool CANnode::regReadAll(uint8_t rcvADDR, uint8_t data[]){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      sendReadRequestg(rcvADDR, reg, true);
+      sendReadRequest(rcvADDR, REG_MULT, true);
     }
 
   }
