@@ -80,7 +80,9 @@ bool CANnode::updateNode(void){
     if(incoming.reg == REG_MULT){
       switch(incoming.ackRW){
         case W_ACK:
-          sndACK();
+          toRet = assignMult(incoming.payload,_lastData);
+          sndACK(incoming.reg,incoming.payload);
+          break;
         case W_NACK:
           toRet = assignMult(incoming.payload,_lastData);
           break;
@@ -91,7 +93,11 @@ bool CANnode::updateNode(void){
     } else {
       switch(incoming.ackRW){
         case W_ACK:
-          sndACK();
+          if(_regs[incoming.reg]!=incoming.payload)   // The register will change
+            toRet = true;
+          _regs[incoming.reg] = incoming.payload;   // For write with and without ack
+          sndACK(incoming.reg,incoming.payload);
+          break;
         case W_NACK:
           if(_regs[incoming.reg]!=incoming.payload)   // The register will change
             toRet = true;
@@ -268,18 +274,24 @@ uint8_t CANnode::regVal(uint8_t reg){
 }
 
 // Set the value of a register, subject to error handling
-void CANnode::setReg(uint8_t reg, uint8_t val){
-  if(reg < 8)
+bool CANnode::setReg(uint8_t reg, uint8_t val){
+  bool toRet = false;
+  if(reg < 8){
+    if(_regs[reg] != val)
+      toRet = true;
     _regs[reg] = val;
+  }
+  return toRet;
 }
 
 // Send ACK to whichever node last sent you a message
-void CANnode::sndACK(void){
+void CANnode::sndACK(uint8_t theReg, uint8_t thePayload){
 
-    // Construct the 29-bit id correctly)
-    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,0xFF,0xFF);
-    // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-    _theCAN.sendMsgBuf(msgID,1,0,_lastData);
+
+    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,theReg,(theReg == REG_MULT)?thePayload:_regs[theReg]);
+    _theCAN.sendMsgBuf(msgID,1,(theReg == REG_MULT)?7,0,_regs);
+
+    }
     if(TXDELAY)
       delay(TXDELAY);
 }
@@ -294,16 +306,24 @@ void CANnode::regRespond(uint8_t reg){
       delay(TXDELAY);
 }
 
-// Send a READ message a few times, and return the response subject to a timeout
-// Note that other incoming messages during the timeout period will be IGNORED
-uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
-
-  // Construct the 29-bit id correctly)
-  uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,reg,0xFF);
+// Send the request to read a register (or mult)
+void sendReadRequest(uint8_t rcvADDR, uint8_t reg, bool readAll = false){
+  if(readAll)
+    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,REG_MULT,0xFF);
+  else
+    uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,reg,0xFF);
   // Send the message to the MCP2515 chip, wait a moment to not overload buffers
   _theCAN.sendMsgBuf(msgID,1,0,_lastData);
   if(TXDELAY)
     delay(TXDELAY);
+}
+
+// Send a READ message a few times, and return the response subject to a timeout
+// Note that other incoming messages during the timeout period will be IGNORED
+uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
+
+
+  sendReadRequestg(rcvADDR, reg);
 
   CANmsg incoming;
 
@@ -332,9 +352,7 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      _theCAN.sendMsgBuf(msgID,1,0,_lastData);
-      if(TXDELAY)
-        delay(TXDELAY);
+      sendReadRequestg(rcvADDR, reg);
     }
 
   }
@@ -345,12 +363,7 @@ uint8_t CANnode::regRead(uint8_t rcvADDR, uint8_t reg){
 
 bool CANnode::regReadAll(uint8_t rcvADDR, uint8_t data[]){
 
-  // Construct the 29-bit id correctly)
-  uint32_t msgID = encodeMSG(_myADDR+_activeADDR,rcvADDR,R_NACK,REG_MULT,0xFF);
-  // Send the message to the MCP2515 chip, wait a moment to not overload buffers
-  _theCAN.sendMsgBuf(msgID,1,0,_lastData);
-  if(TXDELAY)
-    delay(TXDELAY);
+  sendReadRequestg(rcvADDR, reg, true);
 
   CANmsg incoming;
 
@@ -382,9 +395,7 @@ bool CANnode::regReadAll(uint8_t rcvADDR, uint8_t data[]){
     numTries++;
     if(numTries < SENDMAX){       // So you don't send again after the last wait
       setActiveADDR(tempActive);		// Send as the correct address
-      _theCAN.sendMsgBuf(msgID,1,0,_lastData);
-      if(TXDELAY)
-        delay(TXDELAY);
+      sendReadRequestg(rcvADDR, reg, true);
     }
 
   }

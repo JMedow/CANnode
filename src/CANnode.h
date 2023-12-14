@@ -30,7 +30,7 @@
 #define ACK 0b11      // ACK
 
 #define REG_STATUS 0
-#define REG_ID 1
+#define REG_RES 1
 #define REG_TOGGLE 2
 #define REG_SENSOR 3
 #define REG_TRACK 4
@@ -92,9 +92,11 @@ public:
     void setReg(uint8_t reg, uint8_t val);
     // Set the value of a given register
 
-    void sndACK(void);
+    void sndACK(uint8_t theReg, uint8_t thePayload);
     // Respond with ACK to the sender of the last message
 
+    void sendReadRequestg(uint8_t rcvADDR, uint8_t reg, bool readAll);
+    // Send a read request (for response asynch)
     uint8_t regRead(uint8_t rcvADDR, uint8_t reg);
     // Ask for the contents of a register, wait for response (until timeout)
     void regRespond(uint8_t reg);
