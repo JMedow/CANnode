@@ -18,20 +18,20 @@ void CANnode::initCAN(uint8_t myID, uint8_t mult = 0){
     _myADDR = myID;
     _activeADDR = 0;
 
-    while (_theCAN.begin(MCP_ANY,CAN_SPEED,MCP_8MHZ) != CAN_OK){
+    while (_theCAN.begin(MCP_STDEXT,CAN_SPEED,MCP_8MHZ) != CAN_OK){
         Serial.println("CAN BUS init fail, retrying...");
         delay(100);
     }
     Serial.println("CAN BUS init ok!");
 
-    _theCAN.setMode(MCP_NORMAL);
-
     if(mult>3)
-    mult = 3;		// Maximum number of multiple addresses, because of filter size
+      mult = 3;		// Maximum number of multiple addresses, because of filter size
 
     _numMultADDR = mult;		// Number of additional addresses
 
     setStandardFilter(mult);		// Listen to the correct messages
+
+    _theCAN.setMode(MCP_NORMAL);
 
 }
 
@@ -43,6 +43,10 @@ void CANnode::setNoFilterExt(void){
 
 // Set filters to listen for this node's address and global messages
 void CANnode::setStandardFilter(uint8_t mult = 0){
+
+    Serial.print("Setting filter mult = ");
+    Serial.println(mult);
+
     uint32_t MSGMASK_RCV = encodeMSG(0,0xFF,0,0,0);              // Filter on receiver full id
     uint32_t MSGFILTER_RCV_0 = encodeMSG(0,_myADDR,0,0,0);       // Listen to anyone speaking to _myADDR
     uint32_t MSGFILTER_RCV_1 = encodeMSG(0,_myADDR+1,0,0,0);			// Listen to anyone speaking to _myADDR + 1
@@ -286,7 +290,6 @@ bool CANnode::setReg(uint8_t reg, uint8_t val){
 
 // Send ACK to whichever node last sent you a message
 void CANnode::sndACK(uint8_t theReg, uint8_t thePayload){
-
 
     uint32_t msgID = encodeMSG(_myADDR+_activeADDR,_lastSnd,ACK,theReg,(theReg == REG_MULT)?thePayload:_regs[theReg]);
     _theCAN.sendMsgBuf(msgID,1,(theReg == REG_MULT)?7:0,_regs);
