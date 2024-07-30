@@ -68,6 +68,8 @@ public:
     // Returns CANmsg, Dumps data and length into _lastData and _lastLen
     uint8_t lastData(uint8_t data[]);
     // Returns the data count of last data sent, fills the data array with the data
+    uint8_t lastSender(void);
+    // Returns the ID of the last node to send a message
 
     bool updateNode(void);
     // Checks for messages, and deals with them.  Call repeatedly.  Returns true if any registers change.

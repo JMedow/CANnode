@@ -298,6 +298,12 @@ void CANnode::sndACK(uint8_t theReg, uint8_t thePayload){
       delay(TXDELAY);
 }
 
+// Returns the ID of the last node to send a message
+uint8_t lastSender(void){
+  return(_lastSnd);
+}
+
+
 // Respond to the last sender with the contents of the register
 void CANnode::regRespond(uint8_t reg){
 
