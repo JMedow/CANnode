@@ -299,7 +299,7 @@ void CANnode::sndACK(uint8_t theReg, uint8_t thePayload){
 }
 
 // Returns the ID of the last node to send a message
-uint8_t lastSender(void){
+uint8_t CANnode::lastSender(void){
   return(_lastSnd);
 }
 
